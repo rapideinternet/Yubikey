@@ -19,7 +19,7 @@
 * @link        https://github.com/bitbeans
 */
 
-namespace Bitbeans\Yubikey;
+namespace Rapide\Yubikey;
 
 use Config;
 
@@ -34,55 +34,60 @@ class Yubikey
      * Yubico client ID
      * @var string
      */
-    var $_id;
+    protected $_id;
 
     /**
      * Yubico client key
      * @var string
      */
-    var $_key;
+    protected $_key;
 
     /**
      * URL part of validation server
      * @var string
      */
-    var $_url;
+    protected $_url;
 
     /**
      * List with URL part of validation servers
      * @var array
      */
-    var $_url_list;
+    protected $_url_list;
 
     /**
      * index to _url_list
      * @var int
      */
-    var $_url_index;
+    protected $_url_index;
 
     /**
      * Last query to server
      * @var string
      */
-    var $_lastquery;
+    protected $_lastquery;
 
     /**
      * Response from server
      * @var string
      */
-    var $_response;
+    protected $_response;
 
     /**
      * Flag whether to use https or not.
      * @var boolean
      */
-    var $_https;
+    protected $_https = true;
 
     /**
      * Flag whether to verify HTTPS server certificates or not.
      * @var boolean
      */
-    var $_httpsverify;
+    protected $_verify_https = true;
+
+    /**
+     * @var string
+     */
+    protected $_user_agent = '';
 
     /**
      * Constructor
@@ -92,16 +97,18 @@ class Yubikey
      * @access public
      * @throws \Exception
      */
-    public function __construct($config = array())
+    public function __construct(array $config = [])
     {
-        $this->_id = (isset($config['id']) && !empty($config['id'])) ? $id : config('yubikey.CLIENT_ID');
-        $this->_key = base64_decode((isset($config['key']) && !empty($config['key'])) ? $key : config('yubikey.SECRET_KEY'));
-        $this->_https = (isset($config['https'])) ? $config['https'] : 0;
-        $this->_httpsverify = (isset($config['httpsverify'])) ? $config['httpsverify'] : 1;
+        $this->_id = $config['id'] ?? null;
+        $this->_key = base64_decode($config['key'] ?? '');
+        $this->_https = $config['https'] ?? true;
+        $this->_verify_https = $config['verify_https'] ?? true;
+        $this->_url_list = $config['url_list'] ?? [];
+        $this->_user_agent = $config['user_agent'] ?? [];
 
-        if (!$this->_id)  throw new \Exception('Check your CLIENT_ID');
+        if (!$this->_id) throw new \Exception('Check your CLIENT_ID');
         if (!$this->_key) throw new \Exception('Check your SECRET_KEY');
-        if ($this->_https)  $this->test_curl_ssl_support();
+        if ($this->_https) $this->test_curl_ssl_support();
     }
 
     /**
@@ -134,29 +141,6 @@ class Yubikey
     public function getURLpart()
     {
         return ($this->_url) ? $this->_url : "api.yubico.com/wsapi/verify";
-    }
-
-
-    /**
-     * Get next URL part from list to use for validation.
-     *
-     * @return mixed string with URL part of false if no more URLs in list
-     * @access public
-     */
-    public function getNextURLpart()
-    {
-        $url_list = ($this->_url_list) ? $this->_url_list : config('yubikey.URL_LIST');
-        return ($this->_url_index >= count($url_list)) ? false : $url_list[$this->_url_index++];
-    }
-
-    /**
-     * Resets index to URL list
-     *
-     * @access public
-     */
-    public function URLreset()
-    {
-        $this->_url_index = 0;
     }
 
     /**
@@ -192,32 +176,21 @@ class Yubikey
     }
 
     /**
-     * Parse input string into password, yubikey prefix,
-     * ciphertext, and OTP.
+     * Get one parameter from last response
      *
-     * @param $str
-     * @param string $delim
-     * @return bool Keyed array with fields
+     * @return mixed  Exception on error, string otherwise
      * @access public
+     * @throws \Exception
      */
-    public function parsePasswordOTP($str, $delim = '[:]')
+    public function getParameter($parameter)
     {
-        if (!preg_match("/^((.*)" . $delim . ")?(([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{0,16})([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{32}))$/", $str, $matches)) {
-            /* Dvorak? */
-            if (!preg_match("/^((.*)" . $delim . ")?(([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{0,16})([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{32}))$/", $str, $matches)) {
-                return false;
-            } else {
-                $ret['otp'] = strtr($matches[3], "jxe.uidchtnbpygk", "cbdefghijklnrtuv");
-            }
+        $param_array = $this->getParameters();
+
+        if (!empty($param_array) && array_key_exists($parameter, $param_array)) {
+            return $param_array[$parameter];
         } else {
-            $ret['otp'] = $matches[3];
+            throw new \Exception('UNKNOWN_PARAMETER');
         }
-
-        $ret['password'] = $matches[2];
-        $ret['prefix'] = $matches[4];
-        $ret['ciphertext'] = $matches[5];
-
-        return $ret;
     }
 
     /**
@@ -238,24 +211,6 @@ class Yubikey
         $param_array['identity'] = substr($param_array['otp'], 0, 12);
 
         return $param_array;
-    }
-
-    /**
-     * Get one parameter from last response
-     *
-     * @return mixed  Exception on error, string otherwise
-     * @access public
-     * @throws \Exception
-     */
-    public function getParameter($parameter)
-    {
-        $param_array = $this->getParameters();
-
-        if (!empty($param_array) && array_key_exists($parameter, $param_array)) {
-            return $param_array[$parameter];
-        } else {
-            throw new \Exception('UNKNOWN_PARAMETER');
-        }
     }
 
     /**
@@ -286,14 +241,14 @@ class Yubikey
         $params = array('id' => $this->_id, 'otp' => $ret['otp'], 'nonce' => bin2hex(self::getRandomBytes(16)));
 
         /* Take care of protocol version 2 parameters */
-        if ($use_timestamp)  $params['timestamp'] = 1;
-        if ($sl)  $params['sl'] = $sl;
+        if ($use_timestamp) $params['timestamp'] = 1;
+        if ($sl) $params['sl'] = $sl;
         if ($timeout) $params['timeout'] = $timeout;
 
         ksort($params);
 
         $parameters = '';
-        foreach ($params as $p => $v)  $parameters .= "&" . $p . "=" . $v;
+        foreach ($params as $p => $v) $parameters .= "&" . $p . "=" . $v;
 
         $parameters = ltrim($parameters, "&");
 
@@ -314,20 +269,20 @@ class Yubikey
             /* Support https. */
             $query = ($this->_https) ? "https://" : "http://";
             $query .= $URLpart . "?" . $parameters;
-            if ($this->_lastquery)  $this->_lastquery .= " ";
+            if ($this->_lastquery) $this->_lastquery .= " ";
             $this->_lastquery .= $query;
 
             $handle = curl_init($query);
-            curl_setopt($handle, CURLOPT_USERAGENT, config('yubikey.USER_AGENT'));
+            curl_setopt($handle, CURLOPT_USERAGENT, $this->_user_agent);
             curl_setopt($handle, CURLOPT_RETURNTRANSFER, 1);
-            if (!$this->_httpsverify)  curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, 0);
+            if (!$this->_verify_https) curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, 0);
             curl_setopt($handle, CURLOPT_FAILONERROR, true);
 
             /*
              * If timeout is set, we better apply it here as well
              * in case the validation server fails to follow it.
              * */
-            if ($timeout)  curl_setopt($handle, CURLOPT_TIMEOUT, $timeout);
+            if ($timeout) curl_setopt($handle, CURLOPT_TIMEOUT, $timeout);
             curl_multi_add_handle($mh, $handle);
             $ch[(int)$handle] = $handle;
         }
@@ -339,7 +294,7 @@ class Yubikey
 
         do {
             /* Let curl do its work. */
-            while (($mrc = curl_multi_exec($mh, $active)) == CURLM_CALL_MULTI_PERFORM);
+            while (($mrc = curl_multi_exec($mh, $active)) == CURLM_CALL_MULTI_PERFORM) ;
             while ($info = curl_multi_info_read($mh)) {
                 if ($info['result'] == CURLE_OK) {
 
@@ -460,24 +415,32 @@ class Yubikey
     }
 
     /**
-     * Compare two hashes in constant time
+     * Parse input string into password, yubikey prefix,
+     * ciphertext, and OTP.
      *
-     * @param string $knownString
-     * @param string $userString
-     * @return boolean
+     * @param $str
+     * @param string $delim
+     * @return bool Keyed array with fields
+     * @access public
      */
-    protected static function hashEquals($knownString, $userString)
+    public function parsePasswordOTP($str, $delim = '[:]')
     {
-        static $exists = null;
-        if ($exists === null)  $exists = \function_exists('\\hash_equals');
-        if ($exists)  return \hash_equals($knownString, $userString);
-        $length = self::safeStrlen($knownString);
-        if ($length !== self::safeStrlen($userString)) return false;
-        $r = 0;
-        for ($i = 0; $i < $length; ++$i) {
-            $r |= \ord($userString[$i]) ^ \ord($knownString[$i]);
+        if (!preg_match("/^((.*)" . $delim . ")?(([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{0,16})([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{32}))$/", $str, $matches)) {
+            /* Dvorak? */
+            if (!preg_match("/^((.*)" . $delim . ")?(([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{0,16})([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{32}))$/", $str, $matches)) {
+                return false;
+            } else {
+                $ret['otp'] = strtr($matches[3], "jxe.uidchtnbpygk", "cbdefghijklnrtuv");
+            }
+        } else {
+            $ret['otp'] = $matches[3];
         }
-        return $r === 0;
+
+        $ret['password'] = $matches[2];
+        $ret['prefix'] = $matches[4];
+        $ret['ciphertext'] = $matches[5];
+
+        return $ret;
     }
 
     /**
@@ -562,6 +525,54 @@ class Yubikey
         if ($exists === null) $exists = \function_exists('mb_strlen');
         if ($exists) return \mb_strlen($string, '8bit');
         return \strlen($string);
+    }
+
+    /**
+     * Resets index to URL list
+     *
+     * @access public
+     */
+    public function URLreset()
+    {
+        $this->_url_index = 0;
+    }
+
+    /**
+     * Get next URL part from list to use for validation.
+     *
+     * @return mixed string with URL part of false if no more URLs in list
+     * @throws \Exception
+     * @access public
+     */
+    public function getNextURLpart()
+    {
+        if (count($this->_url_list) === 0) {
+            throw new \Exception('No api endpoints provided');
+        }
+
+        $url_list = $this->_url_list;
+        return ($this->_url_index >= count($url_list)) ? false : $url_list[$this->_url_index++];
+    }
+
+    /**
+     * Compare two hashes in constant time
+     *
+     * @param string $knownString
+     * @param string $userString
+     * @return boolean
+     */
+    protected static function hashEquals($knownString, $userString)
+    {
+        static $exists = null;
+        if ($exists === null) $exists = \function_exists('\\hash_equals');
+        if ($exists) return \hash_equals($knownString, $userString);
+        $length = self::safeStrlen($knownString);
+        if ($length !== self::safeStrlen($userString)) return false;
+        $r = 0;
+        for ($i = 0; $i < $length; ++$i) {
+            $r |= \ord($userString[$i]) ^ \ord($knownString[$i]);
+        }
+        return $r === 0;
     }
 
 }

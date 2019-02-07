@@ -19,7 +19,7 @@
  * @link        https://github.com/bitbeans
  */
 
-namespace Bitbeans\Yubikey;
+namespace Rapide\Yubikey;
 
 use Illuminate\Support\Facades\Facade;
 
