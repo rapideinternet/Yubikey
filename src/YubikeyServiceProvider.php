@@ -1,7 +1,7 @@
 <?php
  /*
  * This file is based on Monarobase-Yubikey (Laravel 4).
- * And was modified for Laravel 5 compatibility.
+ * And was modified for Laravel 6 compatibility.
  *
  * (c) 2015 Christian Hermann
  * (c) 2013 Monarobase
@@ -21,17 +21,11 @@
 
 namespace Rapide\Yubikey;
 
+use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 
-class YubikeyServiceProvider extends ServiceProvider {
-
-	/**
-	 * Indicates if loading of the provider is deferred.
-	 *
-	 * @var bool
-	 */
-	protected $defer = true;
-
+class YubikeyServiceProvider extends ServiceProvider implements DeferrableProvider
+{
 	/**
 	 * Bootstrap the application events.
 	 *

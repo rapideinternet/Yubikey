@@ -15,7 +15,7 @@ return [
         'api4.yubico.com/wsapi/2.0/verify',
         'api5.yubico.com/wsapi/2.0/verify',
     ],
-    'USER_AGENT' => 'Laravel 5',
+    'USER_AGENT' => 'Laravel',
     'HTTPS' => true,
     'VERIFY_HTTPS' => true,
 ];

@@ -1,18 +1,17 @@
 {
   "name": "rapide/yubikey",
-  "description": "Yubikey for Laravel 5",
+  "description": "Yubikey for Laravel",
   "keywords": [
     "yubikey",
-    "laravel",
-    "laravel5"
+    "laravel"
   ],
   "license": "MIT",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "authors": [
     {
       "name": "Lucas van der Have",
-      "email": "lucas@rapide.software",
-      "homepage": "https://rapide.nl",
+      "email": "lucas@dossierdata.nl",
+      "homepage": "https://dossierdata.nl",
       "role": "Developer"
     },
     {
@@ -30,7 +29,7 @@
   ],
   "require": {
     "php": ">=7.0.0",
-    "illuminate/support": "~5"
+    "illuminate/support": "^6.0.0"
   },
   "autoload": {
     "psr-4": {
