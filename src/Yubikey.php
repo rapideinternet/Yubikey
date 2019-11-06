@@ -1,7 +1,7 @@
 <?php
 /*
 * This file is based on Monarobase-Yubikey (Laravel 4).
-* And was modified for Laravel 5 compatibility.
+* And was modified for compatibility with newer versions.
 *
 * (c) 2015 Christian Hermann
 * (c) 2013 Monarobase
@@ -9,7 +9,7 @@
 * For the full copyright and license information, please view the LICENSE
 * file that was distributed with this source code.
 *
-*
+* @author    Lucas van der Have
 * @author    Monarobase
 * @author    Christian Hermann
 * @package     Yubikey
@@ -23,12 +23,12 @@ namespace Rapide\Yubikey;
 
 use Config;
 
-class Yubikey
+/**
+ * Class Yubikey
+ * @package Rapide\Yubikey
+ */
+class Yubikey implements YubikeyService
 {
-
-    /**#@+
-     * @access private
-     */
 
     /**
      * Yubico client ID
@@ -93,7 +93,7 @@ class Yubikey
      * Constructor
      *
      * Sets up the object
-     * @param    array $config The client configuration
+     * @param array $config The client configuration
      * @access public
      * @throws \Exception
      */
@@ -106,28 +106,36 @@ class Yubikey
         $this->_url_list = $config['url_list'] ?? [];
         $this->_user_agent = $config['user_agent'] ?? [];
 
-        if (!$this->_id) throw new \Exception('Check your CLIENT_ID');
-        if (!$this->_key) throw new \Exception('Check your SECRET_KEY');
-        if ($this->_https) $this->test_curl_ssl_support();
+        if (!$this->_id) {
+            throw new \Exception('Check your CLIENT_ID');
+        }
+        if (!$this->_key) {
+            throw new \Exception('Check your SECRET_KEY');
+        }
+        if ($this->_https) {
+            $this->sslSupportAvailable();
+        }
     }
 
     /**
      * Test if Curl support SSL
      * Will throw exception if curl was not complied with SSL support
      */
-    private function test_curl_ssl_support()
+    protected function sslSupportAvailable()
     {
-        if (!($version = curl_version()) || !($version['features'] & CURL_VERSION_SSL)) throw new \Exception('HTTPS requested while Curl not compiled with SSL');
+        if (!($version = curl_version()) || !($version['features'] & CURL_VERSION_SSL)) {
+            throw new \Exception('HTTPS requested while Curl not compiled with SSL');
+        }
     }
 
     /**
      * Specify to use a different URL part for verification.
      * The default is "api.yubico.com/wsapi/verify".
      *
-     * @param  string $url New server URL part to use
+     * @param string $url New server URL part to use
      * @access public
      */
-    public function setURLpart($url)
+    public function setURLpart($url): void
     {
         $this->_url = $url;
     }
@@ -138,7 +146,7 @@ class Yubikey
      * @return string  Server URL part
      * @access public
      */
-    public function getURLpart()
+    public function getURLpart(): string
     {
         return ($this->_url) ? $this->_url : "api.yubico.com/wsapi/verify";
     }
@@ -147,8 +155,9 @@ class Yubikey
      * Add another URLpart.
      *
      * @access public
+     * @param $URLpart
      */
-    public function addURLpart($URLpart)
+    public function addURLpart($URLpart): void
     {
         $this->_url_list[] = $URLpart;
     }
@@ -159,7 +168,7 @@ class Yubikey
      * @return string  Request to server
      * @access public
      */
-    public function getLastQuery()
+    public function getLastQuery(): string
     {
         return $this->_lastquery;
     }
@@ -170,7 +179,7 @@ class Yubikey
      * @return string  Output from server
      * @access public
      */
-    public function getLastResponse()
+    public function getLastResponse(): string
     {
         return $this->_response;
     }
@@ -178,9 +187,10 @@ class Yubikey
     /**
      * Get one parameter from last response
      *
+     * @param $parameter
      * @return mixed  Exception on error, string otherwise
-     * @access public
      * @throws \Exception
+     * @access public
      */
     public function getParameter($parameter)
     {
@@ -199,7 +209,7 @@ class Yubikey
      * @return array  parameter array from last response
      * @access public
      */
-    public function getParameters()
+    public function getParameters(): array
     {
         $params = explode("\n", trim($this->_response));
 
@@ -231,24 +241,34 @@ class Yubikey
      * @access public
      * @throws \Exception
      */
-    public function verify($token, $use_timestamp = null, $wait_for_all = false, $sl = null, $timeout = null)
+    public function verify($token, $use_timestamp = null, $wait_for_all = false, $sl = null, $timeout = null): bool
     {
         /* Construct parameters string */
         $ret = $this->parsePasswordOTP($token);
 
-        if (!$ret) throw new \Exception('Could not parse Yubikey OTP');
+        if (!$ret) {
+            throw new \Exception('Could not parse Yubikey OTP');
+        }
 
         $params = array('id' => $this->_id, 'otp' => $ret['otp'], 'nonce' => bin2hex(self::getRandomBytes(16)));
 
         /* Take care of protocol version 2 parameters */
-        if ($use_timestamp) $params['timestamp'] = 1;
-        if ($sl) $params['sl'] = $sl;
-        if ($timeout) $params['timeout'] = $timeout;
+        if ($use_timestamp) {
+            $params['timestamp'] = 1;
+        }
+        if ($sl) {
+            $params['sl'] = $sl;
+        }
+        if ($timeout) {
+            $params['timeout'] = $timeout;
+        }
 
         ksort($params);
 
         $parameters = '';
-        foreach ($params as $p => $v) $parameters .= "&" . $p . "=" . $v;
+        foreach ($params as $p => $v) {
+            $parameters .= "&" . $p . "=" . $v;
+        }
 
         $parameters = ltrim($parameters, "&");
 
@@ -269,20 +289,26 @@ class Yubikey
             /* Support https. */
             $query = ($this->_https) ? "https://" : "http://";
             $query .= $URLpart . "?" . $parameters;
-            if ($this->_lastquery) $this->_lastquery .= " ";
+            if ($this->_lastquery) {
+                $this->_lastquery .= " ";
+            }
             $this->_lastquery .= $query;
 
             $handle = curl_init($query);
             curl_setopt($handle, CURLOPT_USERAGENT, $this->_user_agent);
             curl_setopt($handle, CURLOPT_RETURNTRANSFER, 1);
-            if (!$this->_verify_https) curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, 0);
+            if (!$this->_verify_https) {
+                curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, 0);
+            }
             curl_setopt($handle, CURLOPT_FAILONERROR, true);
 
             /*
              * If timeout is set, we better apply it here as well
              * in case the validation server fails to follow it.
              * */
-            if ($timeout) curl_setopt($handle, CURLOPT_TIMEOUT, $timeout);
+            if ($timeout) {
+                curl_setopt($handle, CURLOPT_TIMEOUT, $timeout);
+            }
             curl_multi_add_handle($mh, $handle);
             $ch[(int)$handle] = $handle;
         }
@@ -294,7 +320,9 @@ class Yubikey
 
         do {
             /* Let curl do its work. */
-            while (($mrc = curl_multi_exec($mh, $active)) == CURLM_CALL_MULTI_PERFORM) ;
+            while (($mrc = curl_multi_exec($mh, $active)) == CURLM_CALL_MULTI_PERFORM) {
+                ;
+            }
             while ($info = curl_multi_info_read($mh)) {
                 if ($info['result'] == CURLE_OK) {
 
@@ -322,7 +350,8 @@ class Yubikey
                          *
                          * 3. Return if status=OK or status=REPLAYED_OTP.
                          */
-                        if (!preg_match("/otp=" . $params['otp'] . "/", $str) || !preg_match("/nonce=" . $params['nonce'] . "/", $str)) {
+                        if (!preg_match("/otp=" . $params['otp'] . "/",
+                                $str) || !preg_match("/nonce=" . $params['nonce'] . "/", $str)) {
                             /* Case 1. Ignore response. */
                         } elseif ($this->_key <> "") {
                             /* Case 2. Verify signature first */
@@ -335,13 +364,25 @@ class Yubikey
                                 $response[$row[0]] = $row[1];
                             }
 
-                            $parameters = ['nonce', 'otp', 'sessioncounter', 'sessionuse', 'sl', 'status', 't', 'timeout', 'timestamp'];
+                            $parameters = [
+                                'nonce',
+                                'otp',
+                                'sessioncounter',
+                                'sessionuse',
+                                'sl',
+                                'status',
+                                't',
+                                'timeout',
+                                'timestamp'
+                            ];
                             sort($parameters);
                             $check = null;
 
                             foreach ($parameters as $param) {
                                 if (array_key_exists($param, $response)) {
-                                    if ($check) $check = $check . '&';
+                                    if ($check) {
+                                        $check = $check . '&';
+                                    }
                                     $check = $check . $param . '=' . $response[$param];
                                 }
                             }
@@ -350,24 +391,32 @@ class Yubikey
 
                             if (self::hashEquals($response['h'], $checksignature)) {
                                 if ($status == 'REPLAYED_OTP') {
-                                    if (!$wait_for_all) $this->_response = $str;
+                                    if (!$wait_for_all) {
+                                        $this->_response = $str;
+                                    }
                                     $replay = true;
                                 }
 
                                 if ($status == 'OK') {
-                                    if (!$wait_for_all) $this->_response = $str;
+                                    if (!$wait_for_all) {
+                                        $this->_response = $str;
+                                    }
                                     $valid = true;
                                 }
                             }
                         } else {
                             /* Case 3. We check the status directly */
                             if ($status == 'REPLAYED_OTP') {
-                                if (!$wait_for_all) $this->_response = $str;
+                                if (!$wait_for_all) {
+                                    $this->_response = $str;
+                                }
                                 $replay = true;
                             }
 
                             if ($status == 'OK') {
-                                if (!$wait_for_all) $this->_response = $str;
+                                if (!$wait_for_all) {
+                                    $this->_response = $str;
+                                }
                                 $valid = true;
                             }
                         }
@@ -382,8 +431,12 @@ class Yubikey
 
                         curl_multi_close($mh);
 
-                        if ($replay) throw new \Exception('REPLAYED_OTP');
-                        if ($valid) return true;
+                        if ($replay) {
+                            throw new \Exception('REPLAYED_OTP');
+                        }
+                        if ($valid) {
+                            return true;
+                        }
 
                         throw new \Exception($status);
                     }
@@ -408,8 +461,12 @@ class Yubikey
 
         curl_multi_close($mh);
 
-        if ($replay) throw new \Exception('REPLAYED_OTP');
-        if ($valid) return true;
+        if ($replay) {
+            throw new \Exception('REPLAYED_OTP');
+        }
+        if ($valid) {
+            return true;
+        }
 
         throw new \Exception('NO_VALID_ANSWER');
     }
@@ -423,11 +480,13 @@ class Yubikey
      * @return bool Keyed array with fields
      * @access public
      */
-    public function parsePasswordOTP($str, $delim = '[:]')
+    protected function parsePasswordOTP($str, $delim = '[:]'): bool
     {
-        if (!preg_match("/^((.*)" . $delim . ")?(([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{0,16})([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{32}))$/", $str, $matches)) {
+        if (!preg_match("/^((.*)" . $delim . ")?(([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{0,16})([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{32}))$/",
+            $str, $matches)) {
             /* Dvorak? */
-            if (!preg_match("/^((.*)" . $delim . ")?(([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{0,16})([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{32}))$/", $str, $matches)) {
+            if (!preg_match("/^((.*)" . $delim . ")?(([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{0,16})([jxe.uidchtnbpygkJXE.UIDCHTNBPYGK]{32}))$/",
+                $str, $matches)) {
                 return false;
             } else {
                 $ret['otp'] = strtr($matches[3], "jxe.uidchtnbpygk", "cbdefghijklnrtuv");
@@ -450,7 +509,7 @@ class Yubikey
      * @return string
      * @throws \Exception
      */
-    protected static function getRandomBytes($num = 16)
+    protected static function getRandomBytes($num = 16): string
     {
         static $which = null;
         if ($which === null) {
@@ -518,12 +577,16 @@ class Yubikey
      * @param string $string
      * @return int
      */
-    protected static function safeStrlen($string)
+    protected static function safeStrlen($string): int
     {
         // Optimization -- only search once:
         static $exists = null;
-        if ($exists === null) $exists = \function_exists('mb_strlen');
-        if ($exists) return \mb_strlen($string, '8bit');
+        if ($exists === null) {
+            $exists = \function_exists('mb_strlen');
+        }
+        if ($exists) {
+            return \mb_strlen($string, '8bit');
+        }
         return \strlen($string);
     }
 
@@ -532,7 +595,7 @@ class Yubikey
      *
      * @access public
      */
-    public function URLreset()
+    protected function URLreset(): void
     {
         $this->_url_index = 0;
     }
@@ -544,7 +607,7 @@ class Yubikey
      * @throws \Exception
      * @access public
      */
-    public function getNextURLpart()
+    protected function getNextURLpart()
     {
         if (count($this->_url_list) === 0) {
             throw new \Exception('No api endpoints provided');
@@ -561,13 +624,19 @@ class Yubikey
      * @param string $userString
      * @return boolean
      */
-    protected static function hashEquals($knownString, $userString)
+    protected static function hashEquals($knownString, $userString): bool
     {
         static $exists = null;
-        if ($exists === null) $exists = \function_exists('\\hash_equals');
-        if ($exists) return \hash_equals($knownString, $userString);
+        if ($exists === null) {
+            $exists = \function_exists('\\hash_equals');
+        }
+        if ($exists) {
+            return \hash_equals($knownString, $userString);
+        }
         $length = self::safeStrlen($knownString);
-        if ($length !== self::safeStrlen($userString)) return false;
+        if ($length !== self::safeStrlen($userString)) {
+            return false;
+        }
         $r = 0;
         for ($i = 0; $i < $length; ++$i) {
             $r |= \ord($userString[$i]) ^ \ord($knownString[$i]);
