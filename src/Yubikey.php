@@ -478,10 +478,10 @@ class Yubikey implements YubikeyService
      *
      * @param $str
      * @param string $delim
-     * @return bool Keyed array with fields
+     * @return array Keyed array with fields
      * @access public
      */
-    protected function parsePasswordOTP($str, $delim = '[:]'): bool
+    protected function parsePasswordOTP($str, $delim = '[:]'): array
     {
         if (!preg_match("/^((.*)" . $delim . ")?(([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{0,16})([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{32}))$/",
             $str, $matches)) {
