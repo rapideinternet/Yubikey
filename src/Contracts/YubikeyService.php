@@ -1,6 +1,6 @@
 <?php
 
-namespace Rapide\Yubikey;
+namespace Rapide\Yubikey\Contracts;
 
 use Exception;
 

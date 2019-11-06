@@ -23,6 +23,7 @@ namespace Rapide\Yubikey;
 
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
+use Rapide\Yubikey\Contracts\YubikeyService;
 
 class YubikeyServiceProvider extends ServiceProvider implements DeferrableProvider
 {

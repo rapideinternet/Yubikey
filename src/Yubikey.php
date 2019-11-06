@@ -22,6 +22,7 @@
 namespace Rapide\Yubikey;
 
 use Config;
+use Rapide\Yubikey\Contracts\YubikeyService;
 
 /**
  * Class Yubikey
