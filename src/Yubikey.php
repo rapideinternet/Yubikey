@@ -478,10 +478,10 @@ class Yubikey implements YubikeyService
      *
      * @param $str
      * @param string $delim
-     * @return array Keyed array with fields
+     * @return array|false Keyed array with fields
      * @access public
      */
-    protected function parsePasswordOTP($str, $delim = '[:]'): array
+    protected function parsePasswordOTP($str, $delim = '[:]')
     {
         if (!preg_match("/^((.*)" . $delim . ")?(([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{0,16})([cbdefghijklnrtuvCBDEFGHIJKLNRTUV]{32}))$/",
             $str, $matches)) {
@@ -507,10 +507,10 @@ class Yubikey implements YubikeyService
      * Get a string of cryptographically secure pseudorandom bytes
      *
      * @param int $num
-     * @return string
+     * @return string|false
      * @throws \Exception
      */
-    protected static function getRandomBytes($num = 16): string
+    protected static function getRandomBytes($num = 16)
     {
         static $which = null;
         if ($which === null) {
