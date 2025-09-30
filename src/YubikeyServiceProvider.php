@@ -29,10 +29,8 @@ class YubikeyServiceProvider extends ServiceProvider implements DeferrableProvid
 {
     /**
      * Bootstrap the application events.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
         $this->publishes([
             __DIR__ . '/config/yubikey.php' => config_path('yubikey.php'),
@@ -41,19 +39,17 @@ class YubikeyServiceProvider extends ServiceProvider implements DeferrableProvid
 
     /**
      * Register the service provider.
-     *
-     * @return void
      */
-    public function register()
+    public function register(): void
     {
         $this->app->singleton('yubikey', function ($app) {
             return new Yubikey([
-                'id' => config('yubikey.CLIENT_ID'),
-                'key' => config('yubikey.SECRET_KEY'),
-                'https' => config('yubikey.HTTPS'),
+                'id'          => config('yubikey.CLIENT_ID'),
+                'key'         => config('yubikey.SECRET_KEY'),
+                'https'       => config('yubikey.HTTPS'),
                 'httpsverify' => config('yubikey.VERIFY_HTTPS'),
-                'url_list' => config('yubikey.URL_LIST'),
-                'user_agent' => config('yubikey.USER_AGENT'),
+                'url_list'    => config('yubikey.URL_LIST'),
+                'user_agent'  => config('yubikey.USER_AGENT'),
             ]);
         });
         $this->app->singleton(YubikeyService::class, 'yubikey');
@@ -68,8 +64,7 @@ class YubikeyServiceProvider extends ServiceProvider implements DeferrableProvid
     {
         return [
             'yubikey',
-            YubikeyService::class
+            YubikeyService::class,
         ];
     }
-
 }

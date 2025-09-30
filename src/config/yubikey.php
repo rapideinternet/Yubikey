@@ -6,16 +6,16 @@
  * */
 
 return [
-    'CLIENT_ID' => '',
+    'CLIENT_ID'  => '',
     'SECRET_KEY' => '',
-    'URL_LIST' => [
+    'URL_LIST'   => [
         'api.yubico.com/wsapi/2.0/verify',
         'api2.yubico.com/wsapi/2.0/verify',
         'api3.yubico.com/wsapi/2.0/verify',
         'api4.yubico.com/wsapi/2.0/verify',
         'api5.yubico.com/wsapi/2.0/verify',
     ],
-    'USER_AGENT' => 'Laravel',
-    'HTTPS' => true,
+    'USER_AGENT'   => 'Laravel',
+    'HTTPS'        => true,
     'VERIFY_HTTPS' => true,
 ];
